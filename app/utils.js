@@ -5,18 +5,31 @@ export async function getPapers(timeFrame) {
   const baseUrl = 'https://huggingface.co/papers';
   const today = new Date();
   let papers = [];
+  let daysToFetch = 1;
 
-  if (timeFrame === 'today') {
-    const url = `${baseUrl}?date=${today.toISOString().split('T')[0]}`;
-    papers = await fetchPapersForDate(url);
-  } else if (timeFrame === 'week') {
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
-      const url = `${baseUrl}?date=${date.toISOString().split('T')[0]}`;
-      const dailyPapers = await fetchPapersForDate(url);
-      papers = [...papers, ...dailyPapers];
-    }
-    // Sort papers by upvotes for the week view
+  switch (timeFrame) {
+    case 'today':
+      daysToFetch = 1;
+      break;
+    case 'week':
+      daysToFetch = 7;
+      break;
+    case 'month':
+      daysToFetch = 30;
+      break;
+    default:
+      daysToFetch = 1;
+  }
+
+  for (let i = 0; i < daysToFetch; i++) {
+    const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+    const url = `${baseUrl}?date=${date.toISOString().split('T')[0]}`;
+    const dailyPapers = await fetchPapersForDate(url);
+    papers = [...papers, ...dailyPapers];
+  }
+
+  // Sort papers by upvotes for week and month views
+  if (timeFrame !== 'today') {
     papers.sort((a, b) => b.upvotes - a.upvotes);
   }
 

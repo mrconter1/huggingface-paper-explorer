@@ -12,6 +12,7 @@ const TimeFrameSelector = ({ timeFrame, setTimeFrame }) => (
     >
       <option value="today">Top Today</option>
       <option value="week">Top This Week</option>
+      <option value="month">Top This Month</option>
     </select>
     <ChevronDownIcon className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
   </div>
@@ -63,9 +64,7 @@ export default function PaperDashboard({ initialPapers }) {
       setLoading(false);
     };
 
-    if (timeFrame !== 'today') {
-      fetchPapers();
-    }
+    fetchPapers();
   }, [timeFrame]);
 
   return (
