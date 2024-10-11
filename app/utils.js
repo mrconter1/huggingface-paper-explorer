@@ -4,17 +4,26 @@ import { load } from 'cheerio';
 export async function getPapers(timeFrame) {
   const baseUrl = 'https://huggingface.co/papers';
   const today = new Date();
-  let url;
+  let papers = [];
 
   if (timeFrame === 'today') {
-    url = `${baseUrl}?date=${today.toISOString().split('T')[0]}`;
+    const url = `${baseUrl}?date=${today.toISOString().split('T')[0]}`;
+    papers = await fetchPapersForDate(url);
   } else if (timeFrame === 'week') {
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    url = `${baseUrl}?date=${weekAgo.toISOString().split('T')[0]}`;
-  } else {
-    url = baseUrl;
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const url = `${baseUrl}?date=${date.toISOString().split('T')[0]}`;
+      const dailyPapers = await fetchPapersForDate(url);
+      papers = [...papers, ...dailyPapers];
+    }
+    // Sort papers by upvotes for the week view
+    papers.sort((a, b) => b.upvotes - a.upvotes);
   }
 
+  return papers;
+}
+
+async function fetchPapersForDate(url) {
   try {
     const { data: html } = await axios.get(url);
     const $ = load(html);
@@ -41,13 +50,9 @@ export async function getPapers(timeFrame) {
       }
     });
 
-    if (timeFrame === 'week') {
-      papers.sort((a, b) => b.upvotes - a.upvotes);
-    }
-
     return papers;
   } catch (error) {
-    console.error('Error fetching papers:', error);
+    console.error(`Error fetching papers for ${url}:`, error);
     return [];
   }
 }
