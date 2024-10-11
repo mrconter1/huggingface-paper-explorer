@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# HuggingFace Paper Explorer 📚🔍
 
-## Getting Started
+Discover top AI research papers from the HuggingFace community, now with extended time frames!
 
-First, run the development server:
+[![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://huggingface-paper-explorer.vercel.app/)
+[![Made with Next.js](https://img.shields.io/badge/Made%20with-Next.js-000000?style=flat-square&logo=Next.js&logoColor=white)](https://nextjs.org/)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🌟 Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Browse top AI research papers beyond just the current day
+- View papers from today, this week, or this month
+- See upvotes, comments, and submission details for each paper
+- Direct links to papers on HuggingFace and arXiv
+- Responsive design for desktop and mobile
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 🚀 Why HuggingFace Paper Explorer?
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+While [HuggingFace Papers](https://huggingface.co/papers) is an excellent resource, it only shows papers for the current day. Our service extends this functionality, allowing you to explore top papers over longer periods:
 
-## Learn More
+- **Today**: See what's hot right now
+- **This Week**: Catch up on the week's most impactful research
+- **This Month**: Get a broader view of recent AI advancements
 
-To learn more about Next.js, take a look at the following resources:
+## 🛠 How It Works
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+HuggingFace Paper Explorer is a simple service that:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+1. Fetches paper data from HuggingFace's website
+2. Parses the HTML to extract relevant information
+3. Aggregates and sorts papers based on the selected time frame
+4. Presents the information in a clean, user-friendly interface
 
-## Deploy on Vercel
+## 🙏 Acknowledgements
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project wouldn't be possible without the incredible HuggingFace community. All paper data and content rights belong to their respective owners and HuggingFace.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## 🤝 Contributing
+
+We welcome contributions and suggestions! Please open an issue if you have ideas for improvements or new features.
+
+## 📝 Feedback
+
+If you have any feedback or run into issues, please file an issue on this GitHub project. We appreciate your input!
+
+## 🔗 Links
+
+- [Live Website](https://huggingface-paper-explorer.vercel.app/)
+- [HuggingFace Papers](https://huggingface.co/papers)
+
+---
+
+Made with ❤️ for the AI research community. Happy exploring!
