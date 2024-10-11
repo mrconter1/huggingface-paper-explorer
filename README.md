@@ -2,6 +2,8 @@
 
 A simple wrapper for HuggingFace's daily paper page that extends the time range for exploring top AI research papers.
 
+**[👉 Visit the HuggingFace Paper Explorer](https://huggingface-paper-explorer.vercel.app/)**
+
 [![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://huggingface-paper-explorer.vercel.app/)
 [![Made with Next.js](https://img.shields.io/badge/Made%20with-Next.js-000000?style=flat-square&logo=Next.js&logoColor=white)](https://nextjs.org/)
 
@@ -38,7 +40,6 @@ If you have any feedback or run into issues, please file an issue on this GitHub
 
 ## 🔗 Links
 
-- [Live Website](https://huggingface-paper-explorer.vercel.app/)
 - [HuggingFace Papers](https://huggingface.co/papers) (The original and awesome source of all papers)
 
 ---
