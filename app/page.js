@@ -2,7 +2,7 @@ import React from 'react';
 import axios from 'axios';
 import { load } from 'cheerio';
 
-const PaperRow = ({ title, image, upvotes, link, comments }) => (
+const PaperRow = ({ title, image, upvotes, link, comments, submittedBy }) => (
   <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6 transition-all duration-300 hover:shadow-xl">
     <div className="md:flex">
       <div className="md:flex-shrink-0">
@@ -10,7 +10,10 @@ const PaperRow = ({ title, image, upvotes, link, comments }) => (
       </div>
       <div className="p-8 w-full">
         <div className="flex justify-between items-start mb-4">
-          <a href={link} className="block text-xl leading-tight font-semibold text-white hover:underline">{title}</a>
+          <div>
+            <a href={link} className="block text-xl leading-tight font-semibold text-white hover:underline mb-2">{title}</a>
+            <div className="text-sm text-gray-400">Submitted by {submittedBy}</div>
+          </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center bg-gray-700 rounded-full px-3 py-1 text-sm font-semibold text-gray-300">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
@@ -42,9 +45,10 @@ async function getPapers() {
       const $element = $(element);
       const title = $element.find('h3 a').text().trim();
       const image = $element.find('img').attr('src');
-      const upvotes = $element.find('.leading-none').text().trim();
+      const upvotes = $element.find('.shadow-alternate input[type="checkbox"] + svg + div').text().trim();
       const link = $element.find('h3 a').attr('href');
       const comments = $element.find('a[href$="#community"]').text().trim();
+      const submittedBy = $element.find('.pointer-events-none').text().replace('Submitted by', '').trim();
 
       // Only add the paper if it has all required fields
       if (title && image && upvotes && link && comments) {
@@ -53,7 +57,8 @@ async function getPapers() {
           image,
           upvotes,
           link: 'https://huggingface.co' + link,
-          comments
+          comments,
+          submittedBy
         });
       }
     });
