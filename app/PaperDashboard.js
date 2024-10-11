@@ -82,9 +82,12 @@ export default function PaperDashboard({ initialPapers }) {
             <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
           </div>
         ) : papers.length > 0 ? (
-          papers.map((paper, index) => (
-            <PaperRow key={index} {...paper} />
-          ))
+          <>
+            <p className="text-center text-gray-400 mb-8">Showing {papers.length} unique papers</p>
+            {papers.map((paper, index) => (
+              <PaperRow key={index} {...paper} />
+            ))}
+          </>
         ) : (
           <p className="text-center text-gray-400 text-xl">No papers found for the selected time frame.</p>
         )}

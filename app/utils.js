@@ -21,11 +21,23 @@ export async function getPapers(timeFrame) {
       daysToFetch = 1;
   }
 
+  const seenPapers = new Set();
+
   for (let i = 0; i < daysToFetch; i++) {
     const date = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
     const url = `${baseUrl}?date=${date.toISOString().split('T')[0]}`;
     const dailyPapers = await fetchPapersForDate(url);
-    papers = [...papers, ...dailyPapers];
+    
+    // Filter out duplicates
+    const uniqueDailyPapers = dailyPapers.filter(paper => {
+      if (seenPapers.has(paper.title)) {
+        return false;
+      }
+      seenPapers.add(paper.title);
+      return true;
+    });
+
+    papers = [...papers, ...uniqueDailyPapers];
   }
 
   // Sort papers by upvotes for week and month views
