@@ -43,10 +43,19 @@ async function getPapers() {
       const title = $element.find('h3 a').text().trim();
       const image = $element.find('img').attr('src');
       const upvotes = $element.find('.leading-none').text().trim();
-      const link = 'https://huggingface.co' + $element.find('h3 a').attr('href');
+      const link = $element.find('h3 a').attr('href');
       const comments = $element.find('a[href$="#community"]').text().trim();
 
-      papers.push({ title, image, upvotes, link, comments });
+      // Only add the paper if it has all required fields
+      if (title && image && upvotes && link && comments) {
+        papers.push({
+          title,
+          image,
+          upvotes,
+          link: 'https://huggingface.co' + link,
+          comments
+        });
+      }
     });
 
     return papers;
