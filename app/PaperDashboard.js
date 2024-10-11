@@ -1,6 +1,21 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ChevronDownIcon } from 'lucide-react';
+
+const TimeFrameSelector = ({ timeFrame, setTimeFrame }) => (
+  <div className="relative inline-block">
+    <select 
+      value={timeFrame} 
+      onChange={(e) => setTimeFrame(e.target.value)}
+      className="appearance-none bg-gray-800 text-white border border-gray-700 rounded-full px-6 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold cursor-pointer"
+    >
+      <option value="today">Top Today</option>
+      <option value="week">Top This Week</option>
+    </select>
+    <ChevronDownIcon className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
+  </div>
+);
 
 const PaperRow = ({ title, image, upvotes, link, comments, submittedBy }) => (
   <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden mb-6 transition-all duration-300 hover:shadow-xl">
@@ -54,27 +69,25 @@ export default function PaperDashboard({ initialPapers }) {
   }, [timeFrame]);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <h1 className="text-3xl font-bold mb-8 text-center">Hugging Face Papers</h1>
-      <div className="max-w-4xl mx-auto mb-6">
-        <select 
-          value={timeFrame} 
-          onChange={(e) => setTimeFrame(e.target.value)}
-          className="bg-gray-800 text-white border border-gray-700 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="today">Top Today</option>
-          <option value="week">Top This Week</option>
-        </select>
-      </div>
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white p-8">
       <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold mb-4">HuggingFace Paper Explorer</h1>
+          <p className="text-xl text-gray-400">Discover top AI research papers from the HuggingFace community</p>
+        </div>
+        <div className="flex justify-center mb-8">
+          <TimeFrameSelector timeFrame={timeFrame} setTimeFrame={setTimeFrame} />
+        </div>
         {loading ? (
-          <p className="text-center text-gray-400">Loading papers...</p>
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
         ) : papers.length > 0 ? (
           papers.map((paper, index) => (
             <PaperRow key={index} {...paper} />
           ))
         ) : (
-          <p className="text-center text-gray-400">No papers found.</p>
+          <p className="text-center text-gray-400 text-xl">No papers found for the selected time frame.</p>
         )}
       </div>
     </div>
