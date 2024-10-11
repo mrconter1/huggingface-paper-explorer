@@ -6,7 +6,10 @@ const TimeFrameSelector = ({ timeFrame, setTimeFrame }) => (
   <div className="relative inline-block">
     <select 
       value={timeFrame} 
-      onChange={(e) => setTimeFrame(e.target.value)}
+      onChange={(e) => {
+        setTimeFrame(e.target.value);
+        localStorage.setItem('selectedTimeFrame', e.target.value);
+      }}
       className="appearance-none bg-gray-800 text-white border border-gray-700 rounded-full px-6 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold cursor-pointer"
     >
       <option value="today">Top Today</option>
@@ -79,8 +82,13 @@ const PaperRow = ({ title, image, upvotes, link, comments, submittedBy }) => {
   );
 };
 
-export default function PaperDashboard({ initialPapers }) {
-  const [timeFrame, setTimeFrame] = useState('today');
+export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
+  const [timeFrame, setTimeFrame] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('selectedTimeFrame') || initialTimeFrame;
+    }
+    return initialTimeFrame;
+  });
   const [papers, setPapers] = useState(initialPapers);
   const [loading, setLoading] = useState(false);
 
