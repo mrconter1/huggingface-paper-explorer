@@ -4,6 +4,10 @@ A simple wrapper for HuggingFace's daily paper page that extends the time range 
 
 **[👉 Visit the HuggingFace Paper Explorer](https://huggingface-paper-explorer.vercel.app/)**
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/df7b938a-46c4-492e-9769-82cc97ccfb00" alt="HuggingFace Paper Explorer Screenshot" width="600" style="max-width: 100%; margin: 20px 0;" />
+</p>
+
 [![Website](https://img.shields.io/badge/Website-Live-brightgreen)](https://huggingface-paper-explorer.vercel.app/)
 [![Made with Next.js](https://img.shields.io/badge/Made%20with-Next.js-000000?style=flat-square&logo=Next.js&logoColor=white)](https://nextjs.org/)
 
