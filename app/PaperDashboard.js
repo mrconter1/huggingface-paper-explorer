@@ -13,6 +13,7 @@ const TimeFrameSelector = ({ timeFrame, setTimeFrame }) => (
       className="appearance-none bg-gray-800 text-white border border-gray-700 rounded-full px-6 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-semibold cursor-pointer"
     >
       <option value="today">Top Today</option>
+      <option value="three_days">Top Last 3 Days</option>
       <option value="week">Top This Week</option>
       <option value="month">Top This Month</option>
     </select>
@@ -104,7 +105,13 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
     fetchPapers();
 
     // Update the document title
-    document.title = `HuggingFace Papers - Top ${timeFrame.charAt(0).toUpperCase() + timeFrame.slice(1)}`;
+    const timeFrameText = {
+      today: 'Today',
+      three_days: 'Last 3 Days',
+      week: 'This Week',
+      month: 'This Month'
+    };
+    document.title = `HuggingFace Papers - Top ${timeFrameText[timeFrame]}`;
   }, [timeFrame]);
 
   return (

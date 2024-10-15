@@ -11,6 +11,9 @@ export async function getPapers(timeFrame) {
     case 'today':
       daysToFetch = 1;
       break;
+    case 'three_days':
+      daysToFetch = 3;
+      break;
     case 'week':
       daysToFetch = 7;
       break;
@@ -40,7 +43,7 @@ export async function getPapers(timeFrame) {
     papers = [...papers, ...uniqueDailyPapers];
   }
 
-  // Sort papers by upvotes for week and month views
+  // Sort papers by upvotes for three_days, week, and month views
   if (timeFrame !== 'today') {
     papers.sort((a, b) => b.upvotes - a.upvotes);
   }
