@@ -73,7 +73,12 @@ const ImageWithFallback = ({ src, alt }) => {
   );
 };
 
-const PaperRow = ({ title, image, upvotes, link, comments, submittedBy, index }) => {
+const fmtDate = (d) => {
+  if (!d) return null;
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const PaperRow = ({ title, image, upvotes, link, comments, submittedBy, date, index }) => {
   const arxivId = link.split('/').pop();
   const arxivPdfLink = `https://arxiv.org/pdf/${arxivId}`;
 
@@ -113,6 +118,7 @@ const PaperRow = ({ title, image, upvotes, link, comments, submittedBy, index })
               </div>
             </div>
             <p className="text-slate-600 text-xs">
+              {fmtDate(date) && <span className="text-slate-500 mr-2">{fmtDate(date)}</span>}
               Submitted by <span className="text-slate-400">{submittedBy}</span>
             </p>
           </div>

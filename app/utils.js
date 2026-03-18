@@ -69,6 +69,7 @@ const fmt = (d) => d.toISOString().split('T')[0];
 const mapRows = (rows) => rows.map(row => ({
   title: row.title, link: row.link, image: row.image,
   upvotes: row.upvotes, comments: row.comments, submittedBy: row.submitted_by,
+  date: row.date,
 }));
 
 // Returns { papers: [...], total: N }
@@ -80,7 +81,7 @@ export async function getPapers(timeFrame, offset = 0, page = 1) {
       const [countRes, dataRes] = await Promise.all([
         db.execute(`SELECT COUNT(DISTINCT arxiv_id) as total FROM papers`),
         db.execute({
-          sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, comments, submitted_by
+          sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, MAX(date) as date, comments, submitted_by
                 FROM papers GROUP BY arxiv_id ORDER BY upvotes DESC LIMIT ? OFFSET ?`,
           args: [PAGE_SIZE, dbOffset],
         }),
@@ -104,7 +105,7 @@ export async function getPapers(timeFrame, offset = 0, page = 1) {
         args: [start, end],
       }),
       db.execute({
-        sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, comments, submitted_by
+        sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, MAX(date) as date, comments, submitted_by
               FROM papers WHERE date BETWEEN ? AND ?
               GROUP BY arxiv_id ORDER BY upvotes DESC LIMIT ? OFFSET ?`,
         args: [start, end, PAGE_SIZE, dbOffset],
