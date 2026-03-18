@@ -155,12 +155,19 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchPapers = async () => {
       setLoading(true);
-      const response = await fetch(`/api/papers?timeFrame=${timeFrame}`);
-      const newPapers = await response.json();
-      setPapers(newPapers);
-      setLoading(false);
+      try {
+        const response = await fetch(`/api/papers?timeFrame=${timeFrame}`, { signal: controller.signal });
+        const newPapers = await response.json();
+        setPapers(newPapers);
+      } catch (err) {
+        if (err.name !== 'AbortError') console.error(err);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
     };
 
     fetchPapers();
@@ -172,6 +179,8 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
       month: 'This Month',
     };
     document.title = `HuggingFace Papers - Top ${timeFrameText[timeFrame]}`;
+
+    return () => controller.abort();
   }, [timeFrame]);
 
   return (
