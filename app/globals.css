@@ -20,6 +20,11 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: auto;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

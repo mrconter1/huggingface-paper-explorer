@@ -65,7 +65,7 @@ const ImageWithFallback = ({ src, alt }) => {
 
   return (
     <img
-      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 will-change-transform"
       src={src}
       alt={alt}
       onError={() => setErrored(true)}
@@ -204,7 +204,7 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
               HuggingFace Papers
             </a>
           </div>
-          <p className="text-xs text-slate-700">All paper data belongs to their respective owners and the HuggingFace community.</p>
+          <p className="text-xs text-slate-500">All paper data belongs to their respective owners and the HuggingFace community.</p>
         </div>
 
         <div className="flex justify-center mb-8">
