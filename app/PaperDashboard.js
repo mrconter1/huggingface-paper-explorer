@@ -19,11 +19,11 @@ const NAV_OPTIONS = [
 const SkeletonCard = () => (
   <div className="bg-slate-800/50 rounded-2xl overflow-hidden mb-4 border border-slate-700/30 animate-pulse">
     <div className="flex">
-      <div className="w-14 flex-shrink-0 flex items-center justify-center border-r border-slate-700/40">
+      <div className="w-10 sm:w-14 flex-shrink-0 flex items-center justify-center border-r border-slate-700/40">
         <div className="h-6 w-5 bg-slate-700 rounded" />
       </div>
-      <div className="w-44 h-44 bg-slate-700/60 flex-shrink-0" />
-      <div className="p-5 flex-1 space-y-3">
+      <div className="w-24 h-24 sm:w-44 sm:h-44 bg-slate-700/60 flex-shrink-0" />
+      <div className="p-3 sm:p-5 flex-1 space-y-3">
         <div className="h-4 bg-slate-700 rounded-full w-3/4" />
         <div className="h-4 bg-slate-700 rounded-full w-1/2" />
         <div className="h-3 bg-slate-700/60 rounded-full w-1/4 mt-1" />
@@ -72,15 +72,15 @@ const PaperRow = ({ title, image, upvotes, link, comments, submittedBy, date, in
   return (
     <div className="group bg-slate-800/50 hover:bg-slate-800/80 rounded-2xl overflow-hidden mb-4 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-slate-900/60 border border-slate-700/40">
       <div className="flex">
-        <div className="w-14 flex-shrink-0 flex items-center justify-center font-bold text-lg border-r border-slate-700/40 text-slate-600">
+        <div className="w-10 sm:w-14 flex-shrink-0 flex items-center justify-center font-bold text-base sm:text-lg border-r border-slate-700/40 text-slate-600">
           {index + 1}
         </div>
-        <div className="flex-shrink-0 w-44 h-44 overflow-hidden rounded-xl m-2">
+        <div className="flex-shrink-0 w-24 h-24 sm:w-44 sm:h-44 overflow-hidden rounded-xl m-2">
           <ImageWithFallback src={image} alt={title} />
         </div>
-        <div className="p-5 flex flex-col justify-between flex-1 min-w-0">
+        <div className="p-3 sm:p-5 flex flex-col justify-between flex-1 min-w-0">
           <div>
-            <div className="flex justify-between items-start gap-4 mb-2">
+            <div className="flex justify-between items-start gap-2 sm:gap-4 mb-2">
               <a
                 href={link}
                 target="_blank"
@@ -104,12 +104,15 @@ const PaperRow = ({ title, image, upvotes, link, comments, submittedBy, date, in
                 </div>
               </div>
             </div>
-            <p className="text-slate-600 text-xs">
+            <p className="text-slate-600 text-xs hidden sm:block">
               {fmtDate(date) && <span className="text-slate-500 mr-2">{fmtDate(date)}</span>}
               Submitted by <span className="text-slate-400">{submittedBy}</span>
             </p>
+            <p className="text-slate-500 text-xs sm:hidden">
+              {fmtDate(date)}
+            </p>
           </div>
-          <div className="flex gap-2 mt-4">
+          <div className="flex flex-wrap gap-2 mt-3 sm:mt-4">
             <a
               href={link}
               target="_blank"
@@ -370,7 +373,7 @@ const TrendsView = () => {
           <div className="h-full bg-amber-500/60 rounded-full animate-[shimmer_1.4s_ease-in-out_infinite]" style={{ width: '40%', animation: 'pulse 1.4s ease-in-out infinite' }} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {Array.from({ length: 10 }).map((_, i) => (
           <div key={i} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/30 animate-pulse h-28" />
         ))}
@@ -436,7 +439,7 @@ const TrendsView = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {sorted.slice(0, 40).map((item) => {
           const values = displayMonths.map(m => pct(item.months[m] || 0, m));
           const growth = calcGrowth(item);
@@ -547,9 +550,9 @@ export default function PaperDashboard({ initialPapers, initialTotal, initialTim
   return (
     <div className="min-h-screen bg-[#0b0f1a] text-white">
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(251,191,36,0.06),transparent)] pointer-events-none" />
-      <div className="relative max-w-4xl mx-auto px-6 py-12">
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <div className="text-center mb-10">
-          <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-amber-400 via-orange-300 to-amber-500 bg-clip-text text-transparent tracking-tight">
+          <h1 className="text-4xl sm:text-5xl font-bold mb-2 bg-gradient-to-r from-amber-400 via-orange-300 to-amber-500 bg-clip-text text-transparent tracking-tight">
             HF Paper Explorer
           </h1>
           <p className="text-slate-400 text-sm mb-4">Top AI research papers from the HuggingFace community</p>
@@ -580,16 +583,16 @@ export default function PaperDashboard({ initialPapers, initialTotal, initialTim
         </div>
 
         <div className="flex justify-center mb-6">
-          <div className="flex items-center gap-1 bg-slate-800/60 p-1.5 rounded-full border border-slate-700/50">
+          <div className="flex flex-wrap justify-center items-center gap-1 bg-slate-800/60 p-1.5 rounded-2xl border border-slate-700/50 max-w-sm sm:max-w-none sm:rounded-full">
             {NAV_OPTIONS.map(({ value, label, divider }) => (
               <React.Fragment key={value}>
-                {divider && <span className="w-px h-5 bg-slate-700/80 mx-0.5 flex-shrink-0" />}
+                {divider && <span className="hidden sm:block w-px h-5 bg-slate-700/80 mx-0.5 flex-shrink-0" />}
                 <button
                   onClick={() => {
                     if (value === 'trends') { setActiveTab('trends'); }
                     else { setActiveTab('papers'); handleSetTimeFrame(value); }
                   }}
-                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                  className={`px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 ${
                     (value === 'trends' ? activeTab === 'trends' : activeTab === 'papers' && timeFrame === value)
                       ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/25'
                       : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
