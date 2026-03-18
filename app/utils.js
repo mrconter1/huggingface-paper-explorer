@@ -47,6 +47,12 @@ export function getDateRange(timeFrame, offset) {
         : new Date(targetYear, targetMonth + 1, 0);
       break;
     }
+    case 'year': {
+      const targetYear = today.getFullYear() - offset;
+      startDate = new Date(targetYear, 0, 1);
+      endDate = offset === 0 ? new Date(today) : new Date(targetYear, 11, 31);
+      break;
+    }
     default: {
       startDate = new Date(today);
       endDate = new Date(today);
@@ -59,7 +65,31 @@ export function getDateRange(timeFrame, offset) {
 
 const fmt = (d) => d.toISOString().split('T')[0];
 
+const LIMITS = { today: 50, three_days: 75, week: 100, month: 100, year: 150, all: 200 };
+
+const mapRows = (rows) => rows.map(row => ({
+  title: row.title, link: row.link, image: row.image,
+  upvotes: row.upvotes, comments: row.comments, submittedBy: row.submitted_by,
+}));
+
 export async function getPapers(timeFrame, offset = 0) {
+  const limit = LIMITS[timeFrame] ?? 100;
+
+  // "all" queries the entire DB with no date filter
+  if (timeFrame === 'all') {
+    try {
+      const result = await db.execute({
+        sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, comments, submitted_by
+              FROM papers GROUP BY arxiv_id ORDER BY upvotes DESC LIMIT ?`,
+        args: [limit],
+      });
+      if (result.rows.length > 0) return mapRows(result.rows);
+    } catch (err) {
+      console.warn('Turso query failed for all:', err.message);
+    }
+    return [];
+  }
+
   const { startDate, endDate } = getDateRange(timeFrame, offset);
   const start = fmt(startDate);
   const end = fmt(endDate);
@@ -71,27 +101,20 @@ export async function getPapers(timeFrame, offset = 0) {
             FROM papers
             WHERE date BETWEEN ? AND ?
             GROUP BY arxiv_id
-            ORDER BY upvotes DESC`,
-      args: [start, end],
+            ORDER BY upvotes DESC
+            LIMIT ?`,
+      args: [start, end, limit],
     });
 
-    if (result.rows.length > 0) {
-      return result.rows.map(row => ({
-        title: row.title,
-        link: row.link,
-        image: row.image,
-        upvotes: row.upvotes,
-        comments: row.comments,
-        submittedBy: row.submitted_by,
-      }));
-    }
+    if (result.rows.length > 0) return mapRows(result.rows);
   } catch (err) {
     console.warn('Turso query failed, falling back to scrape:', err.message);
   }
 
   // Fall back to scraping if DB has no data for this range
   console.log(`No DB data for ${start}–${end}, scraping HuggingFace...`);
-  return scrape(timeFrame, startDate, endDate);
+  const scraped = await scrape(timeFrame, startDate, endDate);
+  return scraped.slice(0, limit);
 }
 
 async function scrape(timeFrame, startDate, endDate) {

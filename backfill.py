@@ -29,24 +29,31 @@ if not DB_URL or not DB_TOKEN:
     raise SystemExit("Missing TURSO_DATABASE_URL or TURSO_AUTH_TOKEN in .env.local")
 
 DAYS_BACK      = 365 * 3   # how far to go back
-DELAY_SECONDS  = 2.5       # pause between each page fetch
+DELAY_SECONDS  = 4.0       # pause between each page fetch
 HF_BASE        = "https://huggingface.co/papers"
 
 # ── Turso HTTP helpers ────────────────────────────────────────────────────────
 
-def turso_execute(sql, args=None):
+def turso_execute(sql, args=None, retries=5):
     stmt = {"sql": sql}
     if args:
         stmt["args"] = [{"type": "text", "value": str(a)} if a is not None else {"type": "null"} for a in args]
     payload = {"requests": [{"type": "execute", "stmt": stmt}, {"type": "close"}]}
-    resp = requests.post(
-        f"{DB_URL}/v2/pipeline",
-        headers={"Authorization": f"Bearer {DB_TOKEN}", "Content-Type": "application/json"},
-        json=payload,
-        timeout=15
-    )
-    resp.raise_for_status()
-    return resp.json()
+    for attempt in range(retries):
+        try:
+            resp = requests.post(
+                f"{DB_URL}/v2/pipeline",
+                headers={"Authorization": f"Bearer {DB_TOKEN}", "Content-Type": "application/json"},
+                json=payload,
+                timeout=15
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            wait = (attempt + 1) * 10
+            print(f"  ⚠ Turso error (attempt {attempt + 1}/{retries}), retrying in {wait}s: {e}")
+            time.sleep(wait)
+    raise RuntimeError(f"Turso unreachable after {retries} attempts")
 
 def turso_query(sql, args=None):
     result = turso_execute(sql, args)
@@ -197,10 +204,13 @@ def main():
             skipped += 1
             continue
 
-        papers = fetch_papers_for_date(target)
-        n = insert_papers(papers)
-        total_inserted += n
-        print(f"[{i+1:4}/{total_days}] {target}  {n} papers inserted")
+        try:
+            papers = fetch_papers_for_date(target)
+            n = insert_papers(papers)
+            total_inserted += n
+            print(f"[{i+1:4}/{total_days}] {target}  {n} papers inserted")
+        except Exception as e:
+            print(f"[{i+1:4}/{total_days}] {target}  ✗ failed: {e} — will retry on next run")
 
         time.sleep(DELAY_SECONDS)
 

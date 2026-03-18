@@ -7,6 +7,8 @@ const TIME_FRAMES = [
   { value: 'three_days', label: '3 Days' },
   { value: 'week', label: 'Week' },
   { value: 'month', label: 'Month' },
+  { value: 'year', label: 'Year' },
+  { value: 'all', label: 'All' },
 ];
 
 const TimeFrameSelector = ({ timeFrame, setTimeFrame }) => (
@@ -182,13 +184,23 @@ const getPeriodLabel = (timeFrame, offset) => {
     const d = new Date(targetYear, targetMonth, 1);
     return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }
+
+  if (timeFrame === 'year') {
+    const y = today.getFullYear() - offset;
+    return offset === 0 ? `${y}` : `${y}`;
+  }
+
+  if (timeFrame === 'all') return 'All Time';
 };
+
+const PAGE_SIZE = 50;
 
 export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
   const [timeFrame, setTimeFrame] = useState(initialTimeFrame);
   const [offset, setOffset] = useState(0);
   const [papers, setPapers] = useState(initialPapers);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -199,6 +211,7 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
   const handleSetTimeFrame = (tf) => {
     setTimeFrame(tf);
     setOffset(0);
+    setPage(1);
     localStorage.setItem('selectedTimeFrame', tf);
   };
 
@@ -217,6 +230,7 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
         const response = await fetch(`/api/papers?timeFrame=${timeFrame}&offset=${offset}`, { signal: controller.signal });
         const newPapers = await response.json();
         setPapers(newPapers);
+        setPage(1);
       } catch (err) {
         if (err.name !== 'AbortError') console.error(err);
       } finally {
@@ -235,55 +249,59 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
     <div className="min-h-screen bg-[#0b0f1a] text-white">
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(251,191,36,0.06),transparent)] pointer-events-none" />
       <div className="relative max-w-4xl mx-auto px-6 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-amber-400 via-orange-300 to-amber-500 bg-clip-text text-transparent tracking-tight">
+        <div className="text-center mb-10">
+          <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-amber-400 via-orange-300 to-amber-500 bg-clip-text text-transparent tracking-tight">
             HF Paper Explorer
           </h1>
-          <p className="text-slate-400 mb-6 text-sm">Top AI research papers from the HuggingFace community</p>
-          <div className="flex justify-center gap-2.5 mb-5">
+          <p className="text-slate-400 text-sm mb-4">Top AI research papers from the HuggingFace community</p>
+          <div className="flex justify-center items-center gap-2 text-xs text-slate-600">
             <a
               href="https://github.com/mrconter1/huggingface-paper-explorer"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-slate-400 hover:text-white text-xs border border-slate-700/80 hover:border-slate-500 rounded-full px-4 py-1.5 transition-all duration-200"
+              className="flex items-center gap-1.5 hover:text-slate-300 transition-colors duration-200"
             >
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clipRule="evenodd" />
               </svg>
               GitHub
             </a>
+            <span>·</span>
             <a
               href="https://huggingface.co/papers"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-slate-400 hover:text-white text-xs border border-slate-700/80 hover:border-slate-500 rounded-full px-4 py-1.5 transition-all duration-200"
+              className="hover:text-slate-300 transition-colors duration-200"
             >
               HuggingFace Papers
             </a>
+            <span>·</span>
+            <span>Data © HuggingFace community</span>
           </div>
-          <p className="text-xs text-slate-500">All paper data belongs to their respective owners and the HuggingFace community.</p>
         </div>
 
         <div className="flex flex-col items-center gap-4 mb-8">
           <TimeFrameSelector timeFrame={timeFrame} setTimeFrame={handleSetTimeFrame} />
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setOffset(o => o + 1)}
-              className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            </button>
-            <span className="text-sm text-slate-300 font-medium min-w-[160px] text-center">
-              {getPeriodLabel(timeFrame, offset)}
-            </span>
-            <button
-              onClick={() => setOffset(o => Math.max(0, o - 1))}
-              disabled={offset === 0}
-              className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:text-slate-400 disabled:hover:border-slate-700"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-            </button>
-          </div>
+          {timeFrame !== 'all' && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setOffset(o => o + 1); setPage(1); }}
+                className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              </button>
+              <span className="text-sm text-slate-300 font-medium min-w-[160px] text-center">
+                {getPeriodLabel(timeFrame, offset)}
+              </span>
+              <button
+                onClick={() => { setOffset(o => Math.max(0, o - 1)); setPage(1); }}
+                disabled={offset === 0}
+                className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:text-slate-400 disabled:hover:border-slate-700"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -292,14 +310,42 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
               <SkeletonCard key={i} />
             ))}
           </div>
-        ) : papers.length > 0 ? (
-          <>
-            <p className="text-center text-slate-600 text-xs mb-5">{papers.length} papers</p>
-            {papers.map((paper, index) => (
-              <PaperRow key={index} {...paper} index={index} />
-            ))}
-          </>
-        ) : (
+        ) : papers.length > 0 ? (() => {
+          const totalPages = Math.ceil(papers.length / PAGE_SIZE);
+          const pagePapers = papers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+          const globalStart = (page - 1) * PAGE_SIZE;
+          return (
+            <>
+              <p className="text-center text-slate-600 text-xs mb-5">
+                {papers.length} papers · page {page} of {totalPages}
+              </p>
+              {pagePapers.map((paper, index) => (
+                <PaperRow key={index} {...paper} index={globalStart + index} />
+              ))}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-3 mt-8">
+                  <button
+                    onClick={() => { setPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    disabled={page === 1}
+                    className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <span className="text-sm text-slate-400 min-w-[80px] text-center">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => { setPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    disabled={page === totalPages}
+                    className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              )}
+            </>
+          );
+        })() : (
           <p className="text-center text-slate-400 text-lg">No papers found for the selected time frame.</p>
         )}
       </div>
