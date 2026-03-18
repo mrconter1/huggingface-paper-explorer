@@ -102,7 +102,8 @@ def fetch_papers_for_date(target_date: date):
             title    = title_el.get_text(strip=True)
             link     = "https://huggingface.co" + link_el["href"]
             arxiv_id = link.split("/")[-1]
-            image    = img_el["src"] if img_el else None
+            raw_image = img_el["src"] if img_el else None
+            image = ("https://huggingface.co" + raw_image) if raw_image and raw_image.startswith("/") else raw_image
             comments = comm_el.get_text(strip=True) if comm_el else "0"
             submitted_by = sub_el.get_text(strip=True).replace("Submitted by", "").strip() if sub_el else ""
 
@@ -130,26 +131,54 @@ def fetch_papers_for_date(target_date: date):
         print(f"  ✗ Error fetching {target_date}: {e}")
         return []
 
+def make_arg(a):
+    return {"type": "null"} if a is None else {"type": "text", "value": str(a)}
+
 def insert_papers(papers):
-    inserted = 0
-    for p in papers:
-        try:
-            turso_execute(
-                """INSERT OR IGNORE INTO papers
-                   (id, arxiv_id, title, link, image, upvotes, comments, submitted_by, date)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                [p["id"], p["arxiv_id"], p["title"], p["link"],
-                 p["image"], str(p["upvotes"]), p["comments"], p["submitted_by"], p["date"]]
-            )
-            inserted += 1
-        except Exception as e:
-            print(f"    DB error for {p['id']}: {e}")
-    return inserted
+    if not papers:
+        return 0
+    try:
+        sql = """INSERT OR IGNORE INTO papers
+                 (id, arxiv_id, title, link, image, upvotes, comments, submitted_by, date)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+        requests_payload = [
+            {"type": "execute", "stmt": {
+                "sql": sql,
+                "args": [make_arg(v) for v in [
+                    p["id"], p["arxiv_id"], p["title"], p["link"],
+                    p["image"], p["upvotes"], p["comments"], p["submitted_by"], p["date"]
+                ]]
+            }}
+            for p in papers
+        ]
+        requests_payload.append({"type": "close"})
+        resp = requests.post(
+            f"{DB_URL}/v2/pipeline",
+            headers={"Authorization": f"Bearer {DB_TOKEN}", "Content-Type": "application/json"},
+            json={"requests": requests_payload},
+            timeout=30
+        )
+        resp.raise_for_status()
+        return len(papers)
+    except Exception as e:
+        print(f"    DB batch error: {e}")
+        return 0
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    import sys
+    clean = "--clean" in sys.argv
+
     create_schema()
+
+    if clean:
+        confirm = input("⚠ This will DELETE all rows in the papers table. Type 'yes' to confirm: ")
+        if confirm.strip().lower() != "yes":
+            print("Aborted.")
+            return
+        turso_execute("DELETE FROM papers")
+        print("All rows deleted. Starting fresh.\n")
 
     today = date.today()
     total_days = DAYS_BACK

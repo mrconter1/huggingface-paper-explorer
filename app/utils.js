@@ -144,7 +144,8 @@ async function fetchPapersForDate(url, attempt = 0) {
       const submittedBy = $el.find('.pointer-events-none').text().replace('Submitted by', '').trim();
 
       if (title && image && !isNaN(upvotes) && link && comments) {
-        papers.push({ title, image, upvotes, link: 'https://huggingface.co' + link, comments, submittedBy });
+        const fullImage = image?.startsWith('/') ? 'https://huggingface.co' + image : image;
+        papers.push({ title, image: fullImage, upvotes, link: 'https://huggingface.co' + link, comments, submittedBy });
       }
     });
 

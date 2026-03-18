@@ -49,8 +49,9 @@ const SkeletonCard = () => (
 
 const ImageWithFallback = ({ src, alt }) => {
   const [errored, setErrored] = useState(false);
+  const resolvedSrc = src?.startsWith('/') ? `https://huggingface.co${src}` : src;
 
-  if (errored || !src) {
+  if (errored || !resolvedSrc) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-slate-700/40">
         <svg className="w-10 h-10 text-slate-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
@@ -63,7 +64,7 @@ const ImageWithFallback = ({ src, alt }) => {
   return (
     <img
       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 will-change-transform"
-      src={src}
+      src={resolvedSrc}
       alt={alt}
       onError={() => setErrored(true)}
     />
