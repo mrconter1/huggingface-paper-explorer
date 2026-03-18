@@ -82,14 +82,15 @@ def create_schema():
 
 # ── Scraping ──────────────────────────────────────────────────────────────────
 
-def fetch_papers_for_date(target_date: date):
+def fetch_papers_for_date(target_date: date, attempt: int = 0):
     url = f"{HF_BASE}?date={target_date.isoformat()}"
     try:
         resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         if resp.status_code == 429:
-            print(f"  ⚠ Rate limited — waiting 30s before retrying {target_date}")
-            time.sleep(30)
-            return fetch_papers_for_date(target_date)
+            wait = 30 + attempt * 15
+            print(f"  ⚠ Rate limited — waiting {wait}s before retrying {target_date}")
+            time.sleep(wait)
+            return fetch_papers_for_date(target_date, attempt + 1)
         if resp.status_code != 200:
             print(f"  ✗ HTTP {resp.status_code} for {target_date}")
             return []
@@ -135,6 +136,11 @@ def fetch_papers_for_date(target_date: date):
             })
         return papers
     except Exception as e:
+        if attempt < 4:
+            wait = (attempt + 1) * 15  # 15s, 30s, 45s, 60s
+            print(f"  ⚠ Network error for {target_date}, retrying in {wait}s (attempt {attempt + 1}/4): {e}")
+            time.sleep(wait)
+            return fetch_papers_for_date(target_date, attempt + 1)
         print(f"  ✗ Error fetching {target_date}: {e}")
         return []
 
