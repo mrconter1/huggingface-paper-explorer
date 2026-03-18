@@ -40,45 +40,66 @@ function extractTerms(title) {
   return terms;
 }
 
-export async function GET() {
-  const result = await db.execute(
-    `SELECT title, substr(date, 1, 7) as month FROM papers WHERE title IS NOT NULL AND date IS NOT NULL ORDER BY date`
-  );
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  const termMonths = {};
-  const monthlyTotals = {};
-  const seenInMonth = new Set();
-
-  for (const row of result.rows) {
-    const title = row.title;
-    const month = row.month;
-    if (!title || !month) continue;
-
-    const key = `${month}::${title}`;
-    if (seenInMonth.has(key)) continue;
-    seenInMonth.add(key);
-
-    monthlyTotals[month] = (monthlyTotals[month] || 0) + 1;
-
-    for (const term of extractTerms(title)) {
-      if (!termMonths[term]) termMonths[term] = {};
-      termMonths[term][month] = (termMonths[term][month] || 0) + 1;
+async function dbExecuteWithRetry(sql, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await db.execute(sql);
+    } catch (err) {
+      if (attempt < retries - 1) {
+        await sleep(300 * Math.pow(2, attempt)); // 300ms, 600ms, 1200ms
+      } else {
+        throw err;
+      }
     }
   }
+}
 
-  const allMonths = [...new Set(
-    Object.values(termMonths).flatMap(m => Object.keys(m))
-  )].sort();
+export async function GET() {
+  try {
+    const result = await dbExecuteWithRetry(
+      `SELECT title, substr(date, 1, 7) as month FROM papers WHERE title IS NOT NULL AND date IS NOT NULL ORDER BY date`
+    );
 
-  const terms = Object.entries(termMonths)
-    .map(([term, months]) => ({
-      term,
-      total: Object.values(months).reduce((a, b) => a + b, 0),
-      months,
-    }))
-    .filter(t => t.total >= 10)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 60);
+    const termMonths = {};
+    const monthlyTotals = {};
+    const seenInMonth = new Set();
 
-  return NextResponse.json({ terms, allMonths, monthlyTotals });
+    for (const row of result.rows) {
+      const title = row.title;
+      const month = row.month;
+      if (!title || !month) continue;
+
+      const key = `${month}::${title}`;
+      if (seenInMonth.has(key)) continue;
+      seenInMonth.add(key);
+
+      monthlyTotals[month] = (monthlyTotals[month] || 0) + 1;
+
+      for (const term of extractTerms(title)) {
+        if (!termMonths[term]) termMonths[term] = {};
+        termMonths[term][month] = (termMonths[term][month] || 0) + 1;
+      }
+    }
+
+    const allMonths = [...new Set(
+      Object.values(termMonths).flatMap(m => Object.keys(m))
+    )].sort();
+
+    const terms = Object.entries(termMonths)
+      .map(([term, months]) => ({
+        term,
+        total: Object.values(months).reduce((a, b) => a + b, 0),
+        months,
+      }))
+      .filter(t => t.total >= 10)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 60);
+
+    return NextResponse.json({ terms, allMonths, monthlyTotals });
+  } catch (err) {
+    console.error('Trends API failed after retries:', err.message);
+    return NextResponse.json({ error: 'Failed to load trends' }, { status: 503 });
+  }
 }

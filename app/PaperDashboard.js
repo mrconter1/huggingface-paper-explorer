@@ -347,12 +347,16 @@ const TrendsView = () => {
   const [showMonths, setShowMonths] = useState(24);
   const [hoveredTerm, setHoveredTerm] = useState(null);
 
-  useEffect(() => {
+  const loadTrends = useCallback(() => {
+    setLoading(true);
+    setData(null);
     fetch('/api/trends')
       .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
+      .then(d => { if (!d.error) setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => { loadTrends(); }, [loadTrends]);
 
   if (loading) return (
     <div className="mt-2">
@@ -374,7 +378,14 @@ const TrendsView = () => {
     </div>
   );
 
-  if (!data) return <p className="text-center text-slate-500 mt-8">Failed to load trends.</p>;
+  if (!data) return (
+    <div className="flex flex-col items-center gap-3 mt-12 text-slate-500">
+      <p className="text-sm">Failed to connect to database.</p>
+      <button onClick={loadTrends} className="px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-800 border border-slate-700 hover:border-slate-500 hover:text-white transition-all duration-200">
+        Retry
+      </button>
+    </div>
+  );
 
   const { terms, allMonths, monthlyTotals } = data;
   const displayMonths = allMonths.slice(-showMonths);
