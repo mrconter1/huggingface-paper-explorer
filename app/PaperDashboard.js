@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 const TIME_FRAMES = [
   { value: 'today', label: 'Today' },
@@ -11,23 +11,10 @@ const TIME_FRAMES = [
   { value: 'all', label: 'All' },
 ];
 
-const TimeFrameSelector = ({ timeFrame, setTimeFrame }) => (
-  <div className="flex gap-1.5 bg-slate-800/60 p-1.5 rounded-full border border-slate-700/50">
-    {TIME_FRAMES.map(({ value, label }) => (
-      <button
-        key={value}
-        onClick={() => setTimeFrame(value)}
-        className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
-          timeFrame === value
-            ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/25'
-            : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
-        }`}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
-);
+const NAV_OPTIONS = [
+  ...TIME_FRAMES,
+  { value: 'trends', label: 'Trends', divider: true },
+];
 
 const SkeletonCard = () => (
   <div className="bg-slate-800/50 rounded-2xl overflow-hidden mb-4 border border-slate-700/30 animate-pulse">
@@ -199,9 +186,294 @@ const getPeriodLabel = (timeFrame, offset) => {
   if (timeFrame === 'all') return 'All Time';
 };
 
+// ── Trends ────────────────────────────────────────────────────────────────────
+
+// Catmull-Rom → cubic bezier, alpha controls tension (0.15 = very slight smoothing)
+const smoothPath = (pts, alpha = 0.18) => {
+  if (pts.length < 2) return '';
+  if (pts.length === 2)
+    return `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)} L${pts[1][0].toFixed(1)},${pts[1][1].toFixed(1)}`;
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const cp1x = p1[0] + (p2[0] - p0[0]) * alpha;
+    const cp1y = p1[1] + (p2[1] - p0[1]) * alpha;
+    const cp2x = p2[0] - (p3[0] - p1[0]) * alpha;
+    const cp2y = p2[1] - (p3[1] - p1[1]) * alpha;
+    d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+};
+
+const TERM_COLORS = [
+  '#f59e0b', '#60a5fa', '#34d399', '#f472b6', '#a78bfa',
+  '#fb923c', '#2dd4bf', '#facc15', '#f87171', '#4ade80',
+];
+
+const CombinedChart = ({ terms, displayMonths, monthlyTotals, hoveredTerm, setHoveredTerm, showMonths, setShowMonths }) => {
+  const top15 = terms.slice(0, 10);
+  const fmtMonth = (m) => {
+    const [y, mo] = m.split('-');
+    return new Date(+y, +mo - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  };
+
+  const pct = (count, month) => (count / Math.max(monthlyTotals[month] || 1, 1)) * 100;
+
+  const VW = 800, VH = 220;
+  const PAD = { top: 12, right: 12, bottom: 32, left: 42 };
+  const chartW = VW - PAD.left - PAD.right;
+  const chartH = VH - PAD.top - PAD.bottom;
+
+  const allValues = top15.flatMap(t => displayMonths.map(m => pct(t.months[m] || 0, m)));
+  const maxVal = Math.max(...allValues, 1);
+
+  const xPos = (i) => PAD.left + (i / Math.max(displayMonths.length - 1, 1)) * chartW;
+  const yPos = (v) => PAD.top + chartH - (v / maxVal) * chartH;
+
+  const makePath = (term) =>
+    smoothPath(displayMonths.map((m, i) => [xPos(i), yPos(pct(term.months[m] || 0, m))]));
+
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => ({ val: (f * maxVal).toFixed(1), y: yPos(f * maxVal) }));
+  const xLabels = displayMonths.map((m, i) => ({ m, i })).filter((_, i, arr) => i % Math.max(1, Math.floor(arr.length / 8)) === 0 || i === displayMonths.length - 1);
+
+  return (
+    <div className="bg-slate-800/40 rounded-xl border border-slate-700/30 p-4 mb-6">
+      <div className="flex justify-end mb-1">
+        <div className="flex gap-0.5 bg-slate-900/60 p-0.5 rounded-full border border-slate-700/40">
+          {[6, 12, 24].map(n => (
+            <button key={n} onClick={() => setShowMonths(n)}
+              className={`px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all duration-200 ${
+                showMonths === n ? 'bg-slate-600 text-white' : 'text-slate-600 hover:text-slate-300'
+              }`}>
+              {n}mo
+            </button>
+          ))}
+        </div>
+      </div>
+      <svg width="100%" viewBox={`0 0 ${VW} ${VH}`} className="overflow-visible">
+        {yTicks.map((t) => (
+          <g key={t.val}>
+            <line x1={PAD.left} x2={VW - PAD.right} y1={t.y} y2={t.y} stroke="#1e293b" strokeWidth="1" />
+            <text x={PAD.left - 5} y={t.y + 3.5} textAnchor="end" fill="#334155" fontSize="9">{t.val}%</text>
+          </g>
+        ))}
+        {xLabels.map(({ m, i }) => (
+          <text key={m} x={xPos(i)} y={VH - 6} textAnchor="middle" fill="#334155" fontSize="9">{fmtMonth(m)}</text>
+        ))}
+        {top15.map((term, ti) => {
+          const isHovered = hoveredTerm === term.term;
+          const isDimmed = hoveredTerm && !isHovered;
+          return (
+            <path
+              key={term.term}
+              d={makePath(term)}
+              fill="none"
+              stroke={TERM_COLORS[ti]}
+              strokeWidth={isHovered ? 2.5 : 1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity={isDimmed ? 0.12 : isHovered ? 1 : 0.75}
+              style={{ transition: 'opacity 0.15s, stroke-width 0.15s' }}
+            />
+          );
+        })}
+        {hoveredTerm && top15.map((term, ti) => {
+          if (term.term !== hoveredTerm) return null;
+          return displayMonths.map((m, i) => {
+            const v = pct(term.months[m] || 0, m);
+            if (v === 0) return null;
+            return <circle key={m} cx={xPos(i)} cy={yPos(v)} r="2" fill={TERM_COLORS[ti]} opacity="0.9" />;
+          });
+        })}
+      </svg>
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2 px-1">
+        {top15.map((term, i) => {
+          const isHovered = hoveredTerm === term.term;
+          return (
+            <button
+              key={term.term}
+              onMouseEnter={() => setHoveredTerm(term.term)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="flex items-center gap-1.5 transition-opacity duration-150"
+              style={{ opacity: hoveredTerm && !isHovered ? 0.35 : 1 }}
+            >
+              <div className="w-4 h-0.5 rounded-full flex-shrink-0" style={{ backgroundColor: TERM_COLORS[i] }} />
+              <span className="text-[10px] text-slate-400 hover:text-slate-200 transition-colors">{term.term}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-slate-600 mt-3 px-1">% of distinct papers per month containing that term</p>
+    </div>
+  );
+};
+
+const Sparkline = ({ values, color = '#f59e0b' }) => {
+  const W = 180, H = 38;
+  if (!values || values.length < 2) return <div style={{ width: W, height: H }} />;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  const range = max - min || 1;
+  const pts = values.map((v, i) => {
+    const x = (i / (values.length - 1)) * (W - 4) + 2;
+    const y = H - 4 - ((v - min) / range) * (H - 10) + 2;
+    return [x, y];
+  });
+  const path = smoothPath(pts);
+  const fill = smoothPath(pts)
+    + ` L${pts[pts.length - 1][0].toFixed(1)},${H} L${pts[0][0].toFixed(1)},${H} Z`;
+  return (
+    <svg width={W} height={H} className="overflow-visible">
+      <defs>
+        <linearGradient id={`sg-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path d={fill} fill={`url(#sg-${color.replace('#', '')})`} />
+      <path d={path} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={pts[pts.length - 1][0]} cy={pts[pts.length - 1][1]} r="2.5" fill={color} />
+    </svg>
+  );
+};
+
+const TrendsView = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState('total'); // 'total' | 'growth'
+  const [showMonths, setShowMonths] = useState(24);
+  const [hoveredTerm, setHoveredTerm] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/trends')
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div className="mt-2">
+      <div className="bg-slate-800/40 rounded-xl border border-slate-700/30 p-6 mb-6 h-64 flex flex-col items-center justify-center gap-4">
+        <svg className="w-7 h-7 text-amber-500 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+          <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        <p className="text-slate-500 text-xs tracking-wide">Analysing paper titles…</p>
+        <div className="w-48 h-1 rounded-full bg-slate-800 overflow-hidden">
+          <div className="h-full bg-amber-500/60 rounded-full animate-[shimmer_1.4s_ease-in-out_infinite]" style={{ width: '40%', animation: 'pulse 1.4s ease-in-out infinite' }} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/30 animate-pulse h-28" />
+        ))}
+      </div>
+    </div>
+  );
+
+  if (!data) return <p className="text-center text-slate-500 mt-8">Failed to load trends.</p>;
+
+  const { terms, allMonths, monthlyTotals } = data;
+  const displayMonths = allMonths.slice(-showMonths);
+
+  const pct = (count, month) => (count / Math.max(monthlyTotals[month] || 1, 1)) * 100;
+
+  const calcGrowth = (term) => {
+    const half = Math.floor(displayMonths.length / 2);
+    const prev = displayMonths.slice(0, half);
+    const recent = displayMonths.slice(half);
+    const prevPct = prev.reduce((s, m) => s + pct(term.months[m] || 0, m), 0) / Math.max(prev.length, 1);
+    const recentPct = recent.reduce((s, m) => s + pct(term.months[m] || 0, m), 0) / Math.max(recent.length, 1);
+    if (prevPct === 0) return recentPct > 0 ? Infinity : 0;
+    return ((recentPct - prevPct) / prevPct) * 100;
+  };
+
+  const sorted = [...terms].sort((a, b) => {
+    if (sortBy === 'growth') return calcGrowth(b) - calcGrowth(a);
+    return b.total - a.total;
+  });
+
+  const fmtMonth = (m) => {
+    const [y, mo] = m.split('-');
+    return new Date(+y, +mo - 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  };
+
+  return (
+    <div className="mt-2">
+      <CombinedChart
+        terms={terms}
+        displayMonths={displayMonths}
+        monthlyTotals={monthlyTotals}
+        hoveredTerm={hoveredTerm}
+        setHoveredTerm={setHoveredTerm}
+        showMonths={showMonths}
+        setShowMonths={setShowMonths}
+      />
+      <div className="flex items-center mb-5">
+        <div className="flex gap-1.5 bg-slate-800/60 p-1 rounded-full border border-slate-700/50">
+          {[['total', 'All Time'], ['growth', 'Trending']].map(([v, l]) => (
+            <button key={v} onClick={() => setSortBy(v)}
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 ${
+                sortBy === v ? 'bg-amber-500 text-slate-900 shadow-md' : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
+              }`}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {sorted.slice(0, 40).map((item) => {
+          const values = displayMonths.map(m => pct(item.months[m] || 0, m));
+          const growth = calcGrowth(item);
+          const isNew = growth === Infinity;
+          const growthStr = isNew ? 'new' : growth > 0 ? `+${Math.round(growth)}%` : `${Math.round(growth)}%`;
+          const growthColor = growth > 20 ? '#f59e0b' : growth > 0 ? '#6ee7b7' : '#94a3b8';
+          const recentAvgPct = displayMonths.slice(-3).reduce((s, m) => s + pct(item.months[m] || 0, m), 0) / 3;
+          const termIdx = terms.slice(0, 10).findIndex(t => t.term === item.term);
+          const lineColor = termIdx >= 0 ? TERM_COLORS[termIdx] : growthColor;
+          const isHighlighted = hoveredTerm === item.term;
+
+          return (
+            <div
+              key={item.term}
+              onMouseEnter={() => setHoveredTerm(item.term)}
+              onMouseLeave={() => setHoveredTerm(null)}
+              className="bg-slate-800/50 hover:bg-slate-800/80 rounded-xl p-4 border border-slate-700/30 transition-all duration-200 cursor-default"
+              style={{ borderColor: isHighlighted ? lineColor + '60' : undefined }}
+            >
+              <div className="flex items-start justify-between mb-1">
+                <span className="text-white text-sm font-semibold leading-tight max-w-[55%]">{item.term}</span>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="text-slate-500 text-xs">{item.total} papers</span>
+                  <span className="text-xs font-semibold" style={{ color: growthColor }}>{growthStr}</span>
+                </div>
+              </div>
+              <div className="mt-1">
+                <Sparkline values={values} color={lineColor} />
+              </div>
+              <div className="flex justify-between mt-1 text-[10px] text-slate-600">
+                <span>{fmtMonth(displayMonths[0])}</span>
+                <span className="text-slate-500">{recentAvgPct.toFixed(1)}% avg last 3mo</span>
+                <span>{fmtMonth(displayMonths[displayMonths.length - 1])}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ── Papers ────────────────────────────────────────────────────────────────────
+
 const PAGE_SIZE = 50;
 
 export default function PaperDashboard({ initialPapers, initialTotal, initialTimeFrame }) {
+  const [activeTab, setActiveTab] = useState('papers');
   const [timeFrame, setTimeFrame] = useState(initialTimeFrame);
   const [offset, setOffset] = useState(0);
   const [papers, setPapers] = useState(initialPapers);
@@ -296,8 +568,31 @@ export default function PaperDashboard({ initialPapers, initialTotal, initialTim
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-4 mb-8">
-          <TimeFrameSelector timeFrame={timeFrame} setTimeFrame={handleSetTimeFrame} />
+        <div className="flex justify-center mb-6">
+          <div className="flex items-center gap-1 bg-slate-800/60 p-1.5 rounded-full border border-slate-700/50">
+            {NAV_OPTIONS.map(({ value, label, divider }) => (
+              <React.Fragment key={value}>
+                {divider && <span className="w-px h-5 bg-slate-700/80 mx-0.5 flex-shrink-0" />}
+                <button
+                  onClick={() => {
+                    if (value === 'trends') { setActiveTab('trends'); }
+                    else { setActiveTab('papers'); handleSetTimeFrame(value); }
+                  }}
+                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
+                    (value === 'trends' ? activeTab === 'trends' : activeTab === 'papers' && timeFrame === value)
+                      ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/25'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
+                  }`}>
+                  {label}
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+
+        {activeTab === 'trends' ? <TrendsView /> : (
+        <>
+        <div className="flex flex-col items-center gap-2 mb-6">
           {timeFrame !== 'all' && (
             <div className="flex items-center gap-3">
               <button
@@ -362,6 +657,8 @@ export default function PaperDashboard({ initialPapers, initialTotal, initialTim
           );
         })() : (
           <p className="text-center text-slate-400 text-lg">No papers found for the selected time frame.</p>
+        )}
+        </>
         )}
       </div>
     </div>
