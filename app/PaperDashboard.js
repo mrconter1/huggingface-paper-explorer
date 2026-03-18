@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const TIME_FRAMES = [
   { value: 'today', label: 'Today' },
   { value: 'three_days', label: '3 Days' },
-  { value: 'week', label: 'This Week' },
-  { value: 'month', label: 'This Month' },
+  { value: 'week', label: 'Week' },
+  { value: 'month', label: 'Month' },
 ];
 
 const TimeFrameSelector = ({ timeFrame, setTimeFrame }) => (
@@ -14,10 +14,7 @@ const TimeFrameSelector = ({ timeFrame, setTimeFrame }) => (
     {TIME_FRAMES.map(({ value, label }) => (
       <button
         key={value}
-        onClick={() => {
-          setTimeFrame(value);
-          localStorage.setItem('selectedTimeFrame', value);
-        }}
+        onClick={() => setTimeFrame(value)}
         className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-200 ${
           timeFrame === value
             ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/25'
@@ -144,23 +141,79 @@ const PaperRow = ({ title, image, upvotes, link, comments, submittedBy, index })
   );
 };
 
+const getPeriodLabel = (timeFrame, offset) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const fmt = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  if (timeFrame === 'today') {
+    if (offset === 0) return 'Today';
+    const d = new Date(today);
+    d.setDate(today.getDate() - offset);
+    return fmt(d);
+  }
+
+  if (timeFrame === 'three_days') {
+    const end = new Date(today);
+    end.setDate(today.getDate() - offset * 3);
+    const start = new Date(end);
+    start.setDate(end.getDate() - 2);
+    if (offset === 0) return `Last 3 Days`;
+    return `${fmt(start)} – ${fmt(end)}`;
+  }
+
+  if (timeFrame === 'week') {
+    const dayOfWeek = (today.getDay() + 6) % 7;
+    const startOfThisWeek = new Date(today);
+    startOfThisWeek.setDate(today.getDate() - dayOfWeek);
+    const start = new Date(startOfThisWeek);
+    start.setDate(startOfThisWeek.getDate() - offset * 7);
+    const end = offset === 0 ? new Date(today) : new Date(start);
+    if (offset > 0) end.setDate(start.getDate() + 6);
+    if (offset === 0) return `This Week`;
+    return `${fmt(start)} – ${fmt(end)}`;
+  }
+
+  if (timeFrame === 'month') {
+    const rawMonth = today.getMonth() - offset;
+    const targetYear = today.getFullYear() + Math.floor(rawMonth / 12);
+    const targetMonth = ((rawMonth % 12) + 12) % 12;
+    const d = new Date(targetYear, targetMonth, 1);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+};
+
 export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
-  const [timeFrame, setTimeFrame] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('selectedTimeFrame') || initialTimeFrame;
-    }
-    return initialTimeFrame;
-  });
+  const [timeFrame, setTimeFrame] = useState(initialTimeFrame);
+  const [offset, setOffset] = useState(0);
   const [papers, setPapers] = useState(initialPapers);
   const [loading, setLoading] = useState(false);
+  const isFirstRender = useRef(true);
 
   useEffect(() => {
+    const saved = localStorage.getItem('selectedTimeFrame');
+    if (saved && saved !== initialTimeFrame) setTimeFrame(saved);
+  }, []);
+
+  const handleSetTimeFrame = (tf) => {
+    setTimeFrame(tf);
+    setOffset(0);
+    localStorage.setItem('selectedTimeFrame', tf);
+  };
+
+  useEffect(() => {
+    // Skip the very first render — SSR already provided the data
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     const controller = new AbortController();
 
     const fetchPapers = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/papers?timeFrame=${timeFrame}`, { signal: controller.signal });
+        const response = await fetch(`/api/papers?timeFrame=${timeFrame}&offset=${offset}`, { signal: controller.signal });
         const newPapers = await response.json();
         setPapers(newPapers);
       } catch (err) {
@@ -172,16 +225,10 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
 
     fetchPapers();
 
-    const timeFrameText = {
-      today: 'Today',
-      three_days: 'Last 3 Days',
-      week: 'This Week',
-      month: 'This Month',
-    };
-    document.title = `HuggingFace Papers - Top ${timeFrameText[timeFrame]}`;
+    document.title = `HuggingFace Papers – ${getPeriodLabel(timeFrame, offset)}`;
 
     return () => controller.abort();
-  }, [timeFrame]);
+  }, [timeFrame, offset]);
 
   return (
     <div className="min-h-screen bg-[#0b0f1a] text-white">
@@ -216,8 +263,26 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
           <p className="text-xs text-slate-500">All paper data belongs to their respective owners and the HuggingFace community.</p>
         </div>
 
-        <div className="flex justify-center mb-8">
-          <TimeFrameSelector timeFrame={timeFrame} setTimeFrame={setTimeFrame} />
+        <div className="flex flex-col items-center gap-4 mb-8">
+          <TimeFrameSelector timeFrame={timeFrame} setTimeFrame={handleSetTimeFrame} />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setOffset(o => o + 1)}
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <span className="text-sm text-slate-300 font-medium min-w-[160px] text-center">
+              {getPeriodLabel(timeFrame, offset)}
+            </span>
+            <button
+              onClick={() => setOffset(o => Math.max(0, o - 1))}
+              disabled={offset === 0}
+              className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:text-slate-400 disabled:hover:border-slate-700"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
         </div>
 
         {loading ? (
