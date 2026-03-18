@@ -175,7 +175,17 @@ def insert_papers(papers):
 
 def main():
     import sys
-    clean = "--clean" in sys.argv
+    args = sys.argv[1:]
+    clean = "--clean" in args
+
+    # --from YYYY-MM-DD  → start from this date going backwards
+    start_from = date.today()
+    if "--from" in args:
+        idx = args.index("--from")
+        try:
+            start_from = date.fromisoformat(args[idx + 1])
+        except (IndexError, ValueError):
+            raise SystemExit("Usage: python backfill.py [--from YYYY-MM-DD] [--clean]")
 
     create_schema()
 
@@ -187,7 +197,7 @@ def main():
         turso_execute("DELETE FROM papers")
         print("All rows deleted. Starting fresh.\n")
 
-    today = date.today()
+    today = start_from
     total_days = DAYS_BACK
     skipped = 0
     total_inserted = 0

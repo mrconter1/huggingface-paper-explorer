@@ -195,10 +195,11 @@ const getPeriodLabel = (timeFrame, offset) => {
 
 const PAGE_SIZE = 50;
 
-export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
+export default function PaperDashboard({ initialPapers, initialTotal, initialTimeFrame }) {
   const [timeFrame, setTimeFrame] = useState(initialTimeFrame);
   const [offset, setOffset] = useState(0);
   const [papers, setPapers] = useState(initialPapers);
+  const [total, setTotal] = useState(initialTotal);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const isFirstRender = useRef(true);
@@ -215,35 +216,44 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
     localStorage.setItem('selectedTimeFrame', tf);
   };
 
+  const fetchPapers = async (tf, off, pg, signal) => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `/api/papers?timeFrame=${tf}&offset=${off}&page=${pg}`,
+        { signal }
+      );
+      const { papers: newPapers, total: newTotal } = await response.json();
+      setPapers(newPapers);
+      setTotal(newTotal);
+    } catch (err) {
+      if (err.name !== 'AbortError') console.error(err);
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  };
+
+  // Fetch when timeFrame or offset changes (reset to page 1)
   useEffect(() => {
-    // Skip the very first render — SSR already provided the data
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-
     const controller = new AbortController();
-
-    const fetchPapers = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/papers?timeFrame=${timeFrame}&offset=${offset}`, { signal: controller.signal });
-        const newPapers = await response.json();
-        setPapers(newPapers);
-        setPage(1);
-      } catch (err) {
-        if (err.name !== 'AbortError') console.error(err);
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    };
-
-    fetchPapers();
-
+    setPage(1);
+    fetchPapers(timeFrame, offset, 1, controller.signal);
     document.title = `HuggingFace Papers – ${getPeriodLabel(timeFrame, offset)}`;
-
     return () => controller.abort();
   }, [timeFrame, offset]);
+
+  // Fetch when page changes
+  useEffect(() => {
+    if (page === 1) return; // page=1 is handled by the above effect or SSR
+    const controller = new AbortController();
+    fetchPapers(timeFrame, offset, page, controller.signal);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return () => controller.abort();
+  }, [page]);
 
   return (
     <div className="min-h-screen bg-[#0b0f1a] text-white">
@@ -311,21 +321,20 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
             ))}
           </div>
         ) : papers.length > 0 ? (() => {
-          const totalPages = Math.ceil(papers.length / PAGE_SIZE);
-          const pagePapers = papers.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+          const totalPages = Math.ceil(total / PAGE_SIZE);
           const globalStart = (page - 1) * PAGE_SIZE;
           return (
             <>
               <p className="text-center text-slate-600 text-xs mb-5">
-                {papers.length} papers · page {page} of {totalPages}
+                {total} papers · page {page} of {totalPages}
               </p>
-              {pagePapers.map((paper, index) => (
+              {papers.map((paper, index) => (
                 <PaperRow key={index} {...paper} index={globalStart + index} />
               ))}
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-3 mt-8">
                   <button
-                    onClick={() => { setPage(p => p - 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    onClick={() => setPage(p => p - 1)}
                     disabled={page === 1}
                     className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
                   >
@@ -335,7 +344,7 @@ export default function PaperDashboard({ initialPapers, initialTimeFrame }) {
                     {page} / {totalPages}
                   </span>
                   <button
-                    onClick={() => { setPage(p => p + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    onClick={() => setPage(p => p + 1)}
                     disabled={page === totalPages}
                     className="flex items-center justify-center w-8 h-8 rounded-full border border-slate-700 text-slate-400 hover:text-white hover:border-slate-500 transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
                   >

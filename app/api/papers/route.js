@@ -7,6 +7,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const timeFrame = searchParams.get('timeFrame');
   const offset = parseInt(searchParams.get('offset') || '0', 10);
-  const papers = await getPapers(timeFrame, offset);
-  return NextResponse.json(papers);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const result = await getPapers(timeFrame, offset, page);
+  return NextResponse.json(result);
 }

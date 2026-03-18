@@ -4,6 +4,7 @@ import { db } from './db';
 
 const BATCH_SIZE = 2;
 const BATCH_DELAY_MS = 1000;
+const PAGE_SIZE = 50;
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -65,56 +66,64 @@ export function getDateRange(timeFrame, offset) {
 
 const fmt = (d) => d.toISOString().split('T')[0];
 
-const LIMITS = { today: 50, three_days: 75, week: 100, month: 100, year: 150, all: 200 };
-
 const mapRows = (rows) => rows.map(row => ({
   title: row.title, link: row.link, image: row.image,
   upvotes: row.upvotes, comments: row.comments, submittedBy: row.submitted_by,
 }));
 
-export async function getPapers(timeFrame, offset = 0) {
-  const limit = LIMITS[timeFrame] ?? 100;
+// Returns { papers: [...], total: N }
+export async function getPapers(timeFrame, offset = 0, page = 1) {
+  const dbOffset = (page - 1) * PAGE_SIZE;
 
-  // "all" queries the entire DB with no date filter
   if (timeFrame === 'all') {
     try {
-      const result = await db.execute({
-        sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, comments, submitted_by
-              FROM papers GROUP BY arxiv_id ORDER BY upvotes DESC LIMIT ?`,
-        args: [limit],
-      });
-      if (result.rows.length > 0) return mapRows(result.rows);
+      const [countRes, dataRes] = await Promise.all([
+        db.execute(`SELECT COUNT(DISTINCT arxiv_id) as total FROM papers`),
+        db.execute({
+          sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, comments, submitted_by
+                FROM papers GROUP BY arxiv_id ORDER BY upvotes DESC LIMIT ? OFFSET ?`,
+          args: [PAGE_SIZE, dbOffset],
+        }),
+      ]);
+      const total = Number(countRes.rows[0].total);
+      return { papers: mapRows(dataRes.rows), total };
     } catch (err) {
       console.warn('Turso query failed for all:', err.message);
+      return { papers: [], total: 0 };
     }
-    return [];
   }
 
   const { startDate, endDate } = getDateRange(timeFrame, offset);
   const start = fmt(startDate);
   const end = fmt(endDate);
 
-  // Try Turso first
   try {
-    const result = await db.execute({
-      sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, comments, submitted_by
-            FROM papers
-            WHERE date BETWEEN ? AND ?
-            GROUP BY arxiv_id
-            ORDER BY upvotes DESC
-            LIMIT ?`,
-      args: [start, end, limit],
-    });
+    const [countRes, dataRes] = await Promise.all([
+      db.execute({
+        sql: `SELECT COUNT(DISTINCT arxiv_id) as total FROM papers WHERE date BETWEEN ? AND ?`,
+        args: [start, end],
+      }),
+      db.execute({
+        sql: `SELECT arxiv_id, title, link, image, MAX(upvotes) as upvotes, comments, submitted_by
+              FROM papers WHERE date BETWEEN ? AND ?
+              GROUP BY arxiv_id ORDER BY upvotes DESC LIMIT ? OFFSET ?`,
+        args: [start, end, PAGE_SIZE, dbOffset],
+      }),
+    ]);
 
-    if (result.rows.length > 0) return mapRows(result.rows);
+    const total = Number(countRes.rows[0].total);
+    if (total > 0) return { papers: mapRows(dataRes.rows), total };
   } catch (err) {
     console.warn('Turso query failed, falling back to scrape:', err.message);
   }
 
-  // Fall back to scraping if DB has no data for this range
+  // Fall back to scraping
   console.log(`No DB data for ${start}–${end}, scraping HuggingFace...`);
-  const scraped = await scrape(timeFrame, startDate, endDate);
-  return scraped.slice(0, limit);
+  const all = await scrape(timeFrame, startDate, endDate);
+  return {
+    papers: all.slice(dbOffset, dbOffset + PAGE_SIZE),
+    total: all.length,
+  };
 }
 
 async function scrape(timeFrame, startDate, endDate) {
